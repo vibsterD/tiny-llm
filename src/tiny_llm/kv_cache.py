@@ -2,6 +2,7 @@ from typing import Optional
 
 import mlx.core as mx
 
+
 class TinyKvCache:
     def update_and_fetch(
         self,
@@ -26,6 +27,7 @@ class TinyKvCache:
             so that the batching kv cache can use this information to generate the mask.
         """
         pass
+
 
 class BatchingKvCache(TinyKvCache):
     def __init__(self, max_active_requests: int, max_seq_len: int):
