@@ -146,4 +146,7 @@ class TinyKvFullCache(TinyKvCache):
 
     def rewind(self, n: int):
         self.offset -= n
-        self.key_values = (self.key_values[0][:, :,  :self.offset], self.key_values[1][:, :,  :self.offset])
+        self.key_values = (
+            self.key_values[0][:, :, : self.offset],
+            self.key_values[1][:, :, : self.offset],
+        )

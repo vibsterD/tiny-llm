@@ -70,8 +70,13 @@ def simple_generate_with_kv_cache(
         offset += tokens.size
         tokens = token
 
+
 def speculative_generate(
-    draft_model: Qwen2ModelWeek2, model: Qwen2ModelWeek2, draft_tokenizer: TokenizerWrapper, tokenizer: TokenizerWrapper, prompt: str
+    draft_model: Qwen2ModelWeek2,
+    model: Qwen2ModelWeek2,
+    draft_tokenizer: TokenizerWrapper,
+    tokenizer: TokenizerWrapper,
+    prompt: str,
 ) -> str:
     draft_kv_cache = [TinyKvFullCache() for _ in range(draft_model.num_hidden_layers)]
     kv_cache = [TinyKvFullCache() for _ in range(model.num_hidden_layers)]
@@ -98,7 +103,9 @@ def speculative_generate(
         offset = prefill_tokens.size
         return token, offset
 
-    draft_token, draft_offset = _prefill(draft_model, draft_tokenizer, prompt, draft_kv_cache)
+    draft_token, draft_offset = _prefill(
+        draft_model, draft_tokenizer, prompt, draft_kv_cache
+    )
     token, offset = _prefill(model, tokenizer, prompt, kv_cache)
 
     def _decode_one(token, tokenizer):
@@ -107,7 +114,6 @@ def speculative_generate(
         detokenizer = tokenizer.detokenizer
         detokenizer.add_token(token.item())
         return True
-
 
     def draft_generate(model, last_token, offset, kv_cache, num_drafts):
         tokens = []
@@ -129,7 +135,9 @@ def speculative_generate(
 
     # speculative decode
     while True:
-        draft_tokens = draft_generate(draft_model, token, draft_offset, draft_kv_cache, num_drafts)
+        draft_tokens = draft_generate(
+            draft_model, token, draft_offset, draft_kv_cache, num_drafts
+        )
         draft_offset += num_drafts
         # assume both models use the same tokenizer
         draft_tokens = mx.concat([token, mx.array(draft_tokens)])
@@ -144,7 +152,7 @@ def speculative_generate(
             if new_tokens[i] != draft_tokens[i]:
                 # revert the full draft generation; re-generate next time
                 # or we matched full, then no rewind and use the last token
-                assert i >= 1 # first token is always the same
+                assert i >= 1  # first token is always the same
                 revert_len = len(draft_tokens) - i
                 _rewind_cache(draft_kv_cache, revert_len - 1)
                 draft_offset -= revert_len - 1
@@ -158,9 +166,15 @@ def speculative_generate(
                 break
             if not _decode_one(new_tokens[i], tokenizer):
                 print(tokenizer._detokenizer.text)
-                return
+                return tokenizer._detokenizer.text
         if accept_all:
             _print_text(tokenizer._detokenizer.text, len(new_tokens))
-            draft_generate(draft_model, mx.array(draft_tokens[-1:]), draft_offset, draft_kv_cache, 1)
+            draft_generate(
+                draft_model,
+                mx.array(draft_tokens[-1:]),
+                draft_offset,
+                draft_kv_cache,
+                1,
+            )
             token = mx.array([last_new_token])
             draft_offset += 1

@@ -31,6 +31,7 @@ if args.solution == "tiny_llm":
         models,
         simple_generate,
         simple_generate_with_kv_cache,
+        speculative_generate,
         sampler,
     )
 
@@ -81,7 +82,10 @@ with mx.stream(mx.gpu if args.device == "gpu" else mx.cpu):
             if draft_mlx_model is not None:
                 print(f"Using draft model {args.draft_model}")
                 draft_tiny_llm_model = models.dispatch_model(
-                    args.draft_model, draft_mlx_model, week=2, enable_flash_attn=args.enable_flash_attn
+                    args.draft_model,
+                    draft_mlx_model,
+                    week=2,
+                    enable_flash_attn=args.enable_flash_attn,
                 )
             else:
                 draft_tiny_llm_model = None
@@ -105,7 +109,13 @@ with mx.stream(mx.gpu if args.device == "gpu" else mx.cpu):
             simple_generate(tiny_llm_model, tokenizer, prompt, sampler=sampler)
         elif args.loader == "week2":
             if draft_tiny_llm_model is not None:
-                speculative_generate(draft_tiny_llm_model, tiny_llm_model, draft_tokenizer, tokenizer, prompt)
+                speculative_generate(
+                    draft_tiny_llm_model,
+                    tiny_llm_model,
+                    draft_tokenizer,
+                    tokenizer,
+                    prompt,
+                )
             else:
                 simple_generate_with_kv_cache(tiny_llm_model, tokenizer, prompt)
     else:
