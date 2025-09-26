@@ -9,7 +9,15 @@ def scaled_dot_product_attention_simple(
     scale: float | None = None,
     mask: mx.array | None = None,
 ) -> mx.array:
-    pass
+    if scale is None:
+        scale = 1 / mx.sqrt(query.shape[-1])
+
+    attn_scores = query @ key.swapaxes(-2, -1)
+    attn_scores = attn_scores * scale
+    if mask is not None:
+        attn_scores = attn_scores + mask
+    attn_scores = mx.softmax(attn_scores, axis=-1)
+    return attn_scores @ value
 
 
 class SimpleMultiHeadAttention:
@@ -22,7 +30,13 @@ class SimpleMultiHeadAttention:
         wv: mx.array,
         wo: mx.array,
     ):
-        pass
+        self.wq = wq
+        self.wk = wk
+        self.wv = wv
+        self.wo = wo
+
+        self.num_heads = num_heads
+        self.hidden_size = hidden_size
 
     def __call__(
         self,
@@ -31,7 +45,21 @@ class SimpleMultiHeadAttention:
         value: mx.array,
         mask: mx.array | None = None,
     ) -> mx.array:
-        pass
+
+        query = query @ self.wq.swapaxes(-1, -2)
+        key = key @ self.wk.swapaxes(-1, -2)
+        value = value @ self.wv.swapaxes(-1, -2)
+
+        # (N, L, HxD) -> (N, H, L, D)
+        query = query.reshape(query.shape[0], query.shape[1], self.num_heads, -1).swapaxes(-2, -3)
+        key = key.reshape(key.shape[0], key.shape[1], self.num_heads, -1).swapaxes(-2, -3)
+        value = value.reshape(value.shape[0], value.shape[1], self.num_heads, -1).swapaxes(-2, -3)
+        attn_scores = scaled_dot_product_attention_simple(query, key, value, mask=mask)
+
+        # (N, H, L, D) -> (N, L, HxD)
+        attn_scores = attn_scores.swapaxes(-2, -3).reshape(query.shape[0], query.shape[2], -1)
+        return attn_scores @ self.wo.swapaxes(-1, -2)
+
 
 
 def causal_mask(L: int, S: int, dtype: mx.Dtype) -> mx.array:
