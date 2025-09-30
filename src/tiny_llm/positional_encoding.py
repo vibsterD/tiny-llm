@@ -28,8 +28,7 @@ class RoPE:
         if self.traditional:
             return self._compute_rope_traditional(x, offset)
         else:
-            # not implemented
-            pass
+            return self._compute_rope_non_traditional(x, offset)
 
     def _compute_rope_traditional(self, x: mx.array, offset: list[slice] | slice | None = None) -> mx.array:
 
@@ -46,10 +45,32 @@ class RoPE:
             curr_x = x[:, j, :, :]
 
             for i in range(self.half_dims):
-                print("x.shape", x.shape, "cos_freqs.shape", cos_freqs.shape, "sin_freqs.shape", sin_freqs.shape, "i", i, "2*i", 2*i, "2*i+1", 2*i+1)
-                print("x[..., 2*i].shape", curr_x[..., 2*i].shape, "cos_freqs[i].shape", cos_freqs[i].shape, "x[..., 2*i+1].shape", curr_x[..., 2*i+1].shape, "sin_freqs[i].shape", sin_freqs[i].shape)
+
                 output[..., j, :, 2*i] = curr_x[..., 2*i] * cos_freqs[i] - curr_x[..., 2*i+1] * sin_freqs[i]
                 output[..., j, :, 2*i+1] = curr_x[..., 2*i] * sin_freqs[i] + curr_x[..., 2*i + 1] * cos_freqs[i]
+
+            curr_offset += 1
+        print("output.shape", output.shape)
+        return output
+
+    def _compute_rope_non_traditional(self, x: mx.array, offset: list[slice] | slice | None = None) -> mx.array:
+
+        curr_offset = offset.start if offset is not None else 0
+        seq_len = x.shape[1]
+
+        # x shape -> (N, L, H, D)
+        # output shape -> (N, L, H, D)
+        output = mx.zeros_like(x)
+        for j in range(seq_len):
+            cos_freqs = self.cos_freqs[curr_offset, :] 
+            sin_freqs = self.sin_freqs[curr_offset, :]
+            
+            curr_x = x[:, j, :, :]
+
+            for i in range(self.half_dims):
+
+                output[..., j, :, i] = curr_x[..., i] * cos_freqs[i] - curr_x[..., self.half_dims+i] * sin_freqs[i]
+                output[..., j, :, self.half_dims + i] = curr_x[..., i] * sin_freqs[i] + curr_x[..., self.half_dims + i] * cos_freqs[i]
 
             curr_offset += 1
         print("output.shape", output.shape)
