@@ -73,7 +73,44 @@ def scaled_dot_product_attention_grouped(
     scale: float | None = None,
     mask: mx.array | str | None = None,
 ) -> mx.array:
-    pass
+    # query: N.. x H_q x L x D
+    # key: N.. x H x S x D
+    # value: N.. x H x S x D
+    # mask: N.. x H_q x L x S
+    # output: N.. x H_q x L x D
+
+    if scale is None:
+        scale = 1 / mx.sqrt(query.shape[-1])
+
+    B = query.shape[:-3]
+    H_q, L, D = query.shape[-3:]
+    H, S, _ = key.shape[-3:]
+    
+    assert H_q % H == 0
+
+    n_repeats = H_q // H
+
+    # How to utilise broadcasting? 
+    # query: B x H_q x L x D -> B x H x n_repeats x L x D
+    # key: B x H x S x D -> B x H x 1 x S x D 
+    # value: B x H x S x D -> B x H x 1 x S x D
+    # mask: B x H_q x L x S -> B x H x n_repeats x L x S
+
+    query = query.reshape(-1, H, n_repeats, L, D)
+    key = key.reshape(-1, H, 1, S, D)
+    value = value.reshape(-1, H, 1, S, D)
+    
+    attn_scores = query @ key.swapaxes(-2, -1)
+    attn_scores = attn_scores * scale
+
+    if mask is not None:
+        mask = mask.reshape(-1, H, n_repeats, L, S)
+        attn_scores = attn_scores + mask
+    
+    attn_scores = softmax(attn_scores, axis=-1)
+    attn_scores = attn_scores @ value
+    return attn_scores.reshape(*B, H_q, L, D)
+
 
 
 def flash_attention(
