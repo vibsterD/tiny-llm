@@ -71,7 +71,7 @@ class Qwen2MultiHeadAttention:
         v_proj = v_proj.swapaxes(-2, -3).astype(mx.float32)
         x = scaled_dot_product_attention_grouped(q_proj, k_proj, v_proj, self.scale, mask).swapaxes(-2, -3).reshape(B, L, -1)
         x = linear(x, self.wo).astype(x.dtype)
-        
+
         return x
 
 
@@ -84,11 +84,21 @@ class Qwen2MLP:
         w_up: mx.array,
         w_down: mx.array,
     ):
-        pass
+        self.dim = dim
+        self.hidden_dim = hidden_dim
+        self.w_gate = w_gate
+        self.w_up = w_up
+        self.w_down = w_down
 
     def __call__(self, x: mx.array) -> mx.array:
-        pass
+        L, E = x.shape[-2:]
+        B = x.shape[:-2]
 
+        up_proj = linear(x, self.w_up)
+        gate_proj = silu(linear(x, self.w_gate))
+        glu_proj = gate_proj * up_proj
+        
+        return linear(glu_proj, self.w_down).reshape(*B, L, E)
 
 class Qwen2TransformerBlock:
     def __init__(
