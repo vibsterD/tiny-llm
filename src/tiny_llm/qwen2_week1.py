@@ -123,14 +123,34 @@ class Qwen2TransformerBlock:
         max_seq_len: int = 32768,
         theta: int = 1000000,
     ):
-        pass
-
+        self.input_layernorm = RMSNorm(hidden_size, w_input_layernorm, eps=rms_norm_eps)
+        self.mha = Qwen2MultiHeadAttention(
+            num_heads=num_attention_heads,
+            hidden_size=hidden_size,
+            num_kv_heads=num_kv_heads,
+            wq=wq,
+            wk=wk,
+            wv=wv,
+            wo=wo,
+            bq=bq,
+            bk=bk,
+            bv=bv,
+            max_seq_len=max_seq_len,
+            theta=theta,
+        )
+        self.post_attention_layernorm = RMSNorm(hidden_size, w_post_attention_layernorm, eps=rms_norm_eps)
+        self.mlp = Qwen2MLP(hidden_size, intermediate_size, w_gate, w_up, w_down)
     def __call__(
         self,
         x: mx.array,
         mask: mx.array | str | None = None,
     ) -> mx.array:
-        q_proj = linear(x, self.wq, self.bq)
+        x_norm = self.input_layernorm(x)
+        x_mha = self.mha(x_norm, mask)
+        x_post_attention = x + x_mha
+        x_post_attention_norm = self.post_attention_layernorm(x_post_attention)
+        x_mlp = self.mlp(x_post_attention_norm)
+        return x_post_attention + x_mlp
 
 
 class Qwen2ModelWeek1:
