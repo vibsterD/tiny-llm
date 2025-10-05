@@ -22,12 +22,11 @@ def simple_generate_with_kv_cache(
         pass
 
 
-def batch_generate(
-    model: any,
+def speculative_generate(
+    draft_model: Qwen2ModelWeek2,
+    model: Qwen2ModelWeek2,
+    draft_tokenizer: TokenizerWrapper,
     tokenizer: TokenizerWrapper,
-    prompts: list[str],
-    max_seq_len=512,
-    batch_size=5,
-    prefill_step=128,
-):
+    prompt: str,
+) -> str:
     pass
