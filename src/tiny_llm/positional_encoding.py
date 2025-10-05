@@ -50,7 +50,7 @@ class RoPE:
                 output[..., j, :, 2*i+1] = curr_x[..., 2*i] * sin_freqs[i] + curr_x[..., 2*i + 1] * cos_freqs[i]
 
             curr_offset += 1
-        print("output.shape", output.shape)
+
         return output
 
     def _compute_rope_non_traditional(self, x: mx.array, offset: list[slice] | slice | None = None) -> mx.array:
@@ -73,7 +73,7 @@ class RoPE:
                 output[..., j, :, self.half_dims + i] = curr_x[..., i] * sin_freqs[i] + curr_x[..., self.half_dims + i] * cos_freqs[i]
 
             curr_offset += 1
-        print("output.shape", output.shape)
+
         return output
 
 
